@@ -1,0 +1,37 @@
+import torch
+from transformers import CLIPProcessor, CLIPModel
+
+
+model_name = "openai/clip-vit-base-patch32"
+model = CLIPModel.from_pretrained(model_name)
+processor = CLIPProcessor.from_pretrained(model_name, use_fast=True)
+
+
+
+def project_text(text_to_project):
+    """Project text into latent embedding space (512)."""
+
+    text_token = processor(
+        text=text_to_project,
+        return_tensors="pt",
+        padding=True)
+
+    with torch.no_grad():
+        text_embedding = model.get_text_features(**text_token)
+
+    return text_embedding
+
+
+def project_image(image_to_project):
+    """Project image into latent embedding space (512)."""
+
+    image_token = processor(
+        images=image_to_project)
+    
+    with torch.no_grad():
+        image_embedding = model.get_image_features(**image_token)
+
+    return image_embedding
+
+
+print(project_text("testing 123 woo").shape)
