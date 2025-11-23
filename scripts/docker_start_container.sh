@@ -1,3 +1,3 @@
-docker start manipurl
-docker exec -it manipurl /bin/bash
-docker stop manipurl
+docker start manipurl2
+docker exec -it manipurl2 /bin/bash
+docker stop manipurl2

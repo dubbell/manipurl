@@ -1,5 +1,6 @@
 # Data
-/data/
+data/*
+!/data/.gitkeep
 
 # Mac OS-specific storage files
 .DS_Store
@@ -193,3 +194,4 @@ cython_debug/
 *.tar.xz
 
 .ssh
+mlruns

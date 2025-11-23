@@ -9,19 +9,26 @@ description = "Robotic manipulation."
 authors = [
   { name = "Linus Lundgren" },
 ]
-
 readme = "README.md"
 classifiers = [
     "Programming Language :: Python :: 3",
-    
 ]
 requires-python = "~=3.9.0"
+dependencies = [
+  "click"
+]
 
+[project.scripts]
+manipurl = "manipurl.cli:cli"
+
+[tool.flit.module]
+name = "manipurl"
+root = "src"
 
 [tool.ruff]
 line-length = 99
-src = ["manipurl"]
-include = ["pyproject.toml", "manipurl/**/*.py"]
+src = ["src"]
+include = ["pyproject.toml", "src/**/*.py"]
 
 [tool.ruff.lint]
 extend-select = ["I"]  # Add import sorting
@@ -29,4 +36,3 @@ extend-select = ["I"]  # Add import sorting
 [tool.ruff.lint.isort]
 known-first-party = ["manipurl"]
 force-sort-within-sections = true
-

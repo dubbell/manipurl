@@ -32,6 +32,3 @@ def project_image(image_to_project):
         image_embedding = model.get_image_features(**image_token)
 
     return image_embedding
-
-
-print(project_text("testing 123 woo").shape)
