@@ -36,7 +36,7 @@ class Actor(nn.Module):
         # log probability for unconstrained action
         log_prob_z = action_normal_distr.log_prob(z).sum(-1, keepdim=True)
 
-        # loss term for tanh transformation, with correction to avoid numerical instability
+        # additional loss term for tanh transformation
         log_det_jacobian = 2 * (np.log(2) - z - nn.functional.softplus(-2 * z)).sum(-1, keepdim=True)
       
         if self.max_action != 1.0:

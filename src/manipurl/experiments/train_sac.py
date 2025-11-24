@@ -1,96 +1,86 @@
 from manipurl.utils.logger import Logger
 from manipurl.models.sac import SACAgent
-from manipurl.utils.tasks import TASKS
 from manipurl.utils.replay_buffer import ReplayBuffer
 
-from rlbench.environment import Environment
-from rlbench.action_modes.action_mode import MoveArmThenGripper
-from rlbench.action_modes.arm_action_modes import JointVelocity
-from rlbench.action_modes.gripper_action_modes import Discrete
-from rlbench.observation_config import CameraConfig, ObservationConfig
+import gymnasium as gym
+import metaworld
+import torch
 
 import datetime
 from tqdm import tqdm
 
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 
-MAX_ENV_STEP = 350
+
+MAX_ENV_STEP = 500
 START_TRAINING = 2500
 
 
 
-def get_obs_config():
-    obs_config = ObservationConfig()
-    obs_config.set_all(False)
-    obs_config.joint_positions = True
-    obs_config.gripper_open = True
-    obs_config.task_low_dim_state = True
-    # obs_config.front_camera = CameraConfig(
-    #     rgb=True,
-    #     depth=False,
-    #     point_cloud=False,
-    #     mask=False,
-    #     image_size=(512, 512))
-    
-    return obs_config
-
-
-
-def start_training(task_name, num_episodes, seed = 0):
+def start_training(task_name, num_episodes, seed = 0, pb_enable=True):
     logger = Logger("SAC_" + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
+    logger.log_parameters({
+        "task": task_name,
+        "seed": seed,
+        "MAX_EP_LENGTH": MAX_ENV_STEP,
+        "n_episodes": num_episodes,
+        "algorithm": "SAC"
+    })
 
-    action_mode = MoveArmThenGripper(arm_action_mode=JointVelocity(), gripper_action_mode=Discrete())
-    
-    env = Environment(action_mode, obs_config=get_obs_config(), headless=True)
-    env.launch()
-    task_env = env.get_task(TASKS[task_name])
-    # task_env.set_variation(0)
+    env = gym.make("Meta-World/MT1", env_name=task_name, seed=seed, max_episode_steps=MAX_ENV_STEP)
 
     episode_count = 0
-    _, obs = task_env.reset()
 
-    state_dim, action_dim = obs.get_low_dim_data().shape[0], env.action_shape[0]
+    state_dim, action_dim = env.observation_space.shape[0], env.action_space.shape[0]
     agent = SACAgent(state_dim, action_dim, logger=logger)
     replay_buffer = ReplayBuffer(state_dim, action_dim)
 
     total_step = 0
-    pb = tqdm(total = num_episodes)
+    if pb_enable:
+        pb = tqdm(total = num_episodes)
 
-    while episode_count < num_episodes:
-        terminate = False
-        env_step = 0
-        success = 0
+    with torch.random.fork_rng():
+        torch.manual_seed(seed)
+        while episode_count < num_episodes:
+            terminate, truncate = False, False
+            env_step = 0
+            success = 0
 
-        while not terminate and env_step < MAX_ENV_STEP:
-            action = agent.sample_action(obs.get_low_dim_data()).detach().cpu().numpy()
-            next_obs, task_reward, terminate = task_env.step(action)
-            
-            replay_buffer.insert(
-                obs.get_low_dim_data(), 
-                next_obs.get_low_dim_data(),
-                action,
-                task_reward-1,
-                terminate)
-            
-            if total_step >= START_TRAINING:
-                agent.train_step(replay_buffer.sample(256))
-            
-            if task_reward > 0:
-                success = 1
-            obs = next_obs
-            
-            env_step += 1
-            total_step += 1
-            
-        logger.log_metrics({
-            "success": success,
-            "episode_length": env_step})
+            obs, _ = env.reset()
 
-        logger.increment()
-        pb.update(1)
-        episode_count += 1
+            while not terminate and not truncate:
+                action = agent.sample_action(obs).detach().cpu().numpy()
+                next_obs, _, terminate, truncate, info = env.step(action)
+                sparse_reward = info["success"]
+                
+                replay_buffer.insert(
+                    obs, 
+                    next_obs,
+                    action,
+                    sparse_reward-1,
+                    terminate)
+                
+                if total_step >= START_TRAINING:
+                    agent.train_step(replay_buffer.sample(256))
+                
+                if sparse_reward > 0:
+                    success = 1
+                obs = next_obs
+                
+                env_step += 1
+                total_step += 1
+                
+            logger.log_metrics({
+                "success": success,
+                "episode_length": env_step})
 
-        _, obs = task_env.reset()
+            logger.increment()
+            if pb_enable:
+                pb.update(1)
+            episode_count += 1
 
-    logger.stop()
-    pb.close()
-    env.shutdown()
+        logger.stop()
+        if pb_enable:
+            pb.close()
+        env.close()
