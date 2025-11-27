@@ -5,3 +5,4 @@ max_episode_step: 500
 start_training: 2500
 eval_freq: 50
 eval_eps: 25
+runs_per_iteration: 10

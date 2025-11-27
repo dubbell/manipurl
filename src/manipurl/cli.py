@@ -26,7 +26,7 @@ def available_configs():
     return [
         filename.split('.yaml')[0]
         for filename in os.listdir('configs')
-        if filename != 'default.yaml' and '.yaml' in filename]
+        if '.yaml' in filename]
 
 def get_config(config_name):
     filepath = f'configs/{config_name}.yaml'
@@ -72,20 +72,33 @@ def cli():
 
 @cli.command()
 @click.argument('algorithm', type=click.Choice(['sac']))
-@click.argument('config', type=click.Choice(available_configs()), required=False, default='default', help="One of the available run configurations in `configs`.")
+@click.argument('config', type=click.Choice(available_configs()), required=False, default='default')
 @click.option('--seeds', help="Comma separated list of seeds to sweep.")
 @click.option('--tasks', help="Comma separated list of tasks to sweep. `all` for all tasks.")
-@click.option('--n_episodes', help="Number of training episodes.")
-@click.option('--max_episode_step', help="Max number of environment steps per episode.")
-@click.option('--start_training', help="Environment step for starting training.")
-@click.option('--eval_freq', help="Evaluation frequency (number of episodes).")
-@click.option('--eval_eps', help="Number of episodes per evaluation.")
-def train(algorithm, config, **kwargs):
+@click.option('--n_episodes', help="Number of training episodes.", type=int)
+@click.option('--max_episode_step', help="Max number of environment steps per episode.", type=int)
+@click.option('--start_training', help="Environment step for starting training.", type=int)
+@click.option('--eval_freq', help="Evaluation frequency (number of episodes).", type=int)
+@click.option('--eval_eps', help="Number of episodes per evaluation.", type=int)
+@click.option('--runs_per_iteration', help="Number of experiments to run in parallel.", type=int)
+def train(algorithm, config, seeds, tasks, n_episodes, max_episode_step, start_training, eval_freq, eval_eps, runs_per_iteration):
     """Start experiments for specified algorithm."""
+    options = { key : value for key, value in {
+            "algorithm" : algorithm, 
+            "config" : config, 
+            "seeds" : seeds, 
+            "tasks" : tasks, 
+            "n_episodes" : n_episodes, 
+            "max_episode_step" : max_episode_step, 
+            "start_training" : start_training, 
+            "eval_freq" : eval_freq, 
+            "eval_eps" : eval_eps, 
+            "runs_per_iteration" : runs_per_iteration}.items()
+        if value is not None }
 
     config_dict = get_config('default')
     config_dict.update(get_config(config))
-    config_dict.update(kwargs)
+    config_dict.update(options)
 
     config_dict['seeds'] = unfold_seeds(config_dict['seeds'])
     if config_dict['seeds'] is None:

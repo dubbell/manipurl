@@ -10,7 +10,8 @@ RunConfig = namedtuple(
         'max_episode_step', 
         'start_training',
         'eval_freq',
-        'eval_eps'
+        'eval_eps',
+        'runs_per_iteration'
     ])
 
 def config_dict_to_configs(config_dict):
@@ -22,8 +23,8 @@ def config_dict_to_configs(config_dict):
             config_dict['max_episode_step'], 
             config_dict['start_training'], 
             config_dict['eval_freq'], 
-            config_dict['eval_eps'])
+            config_dict['eval_eps'],
+            config_dict['runs_per_iteration'])
         
         for task in config_dict['tasks']
-        for seed in config_dict['seeds']
-    ]
+        for seed in config_dict['seeds']]

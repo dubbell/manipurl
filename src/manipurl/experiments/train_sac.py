@@ -1,4 +1,4 @@
-from manipurl.utils.logger import Logger
+from manipurl.utils.logger import Logger, NoLogger
 from manipurl.models.sac import SACAgent
 from manipurl.utils.replay_buffer import ReplayBuffer
 
@@ -17,10 +17,10 @@ from manipurl.wrappers.profiling import profile
 from manipurl.experiments.run_config import RunConfig
 
 
-def evaluate(config : RunConfig, env : gym.Env, agent : SACAgent, logger : Logger):
+def evaluate(env : gym.Env, agent : SACAgent, eval_eps : int, logger : Logger):
     pinned_action_buffer = torch.empty(agent.act_dim, dtype=torch.float32, pin_memory = True)
 
-    for _ in range(config.eval_eps):
+    for _ in range(eval_eps):
         terminate, truncate = False, False
         success = 0
         obs, _ = env.reset()
@@ -40,7 +40,7 @@ def evaluate(config : RunConfig, env : gym.Env, agent : SACAgent, logger : Logge
 @profile
 def start_training(config : RunConfig):
     run_name = f"SAC_{config.task}_s{config.seed}_" + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    logger = Logger(run_name)
+    logger = Logger(run_name) if os.environ.get("MANIPURL_ENABLE_LOGGING", 'false') == 'true' else NoLogger()
     logger.log_parameters({
         **config._asdict(),
         "algorithm": "SAC"})
@@ -52,7 +52,7 @@ def start_training(config : RunConfig):
     agent = SACAgent(state_dim, action_dim, logger=logger)
     replay_buffer = ReplayBuffer(state_dim, action_dim, min(int(1e6), config.n_episodes * config.max_episode_step))
 
-    pb_enable = os.environ.get('MANIPURL_ENABLE_LOGGING', False)
+    pb_enable = os.environ.get('MANIPURL_ENABLE_PB', 'false').lower() == 'true'
     if pb_enable:
         pb = tqdm(total = config.n_episodes)
 
@@ -97,7 +97,7 @@ def start_training(config : RunConfig):
                 "episode_length": env_step})
 
             if episode_count % config.eval_freq == 0:
-                evaluate(eval_env, agent, logger)
+                evaluate(eval_env, agent, config.eval_eps, logger)
 
             logger.increment()
             if pb_enable:
@@ -109,4 +109,6 @@ def start_training(config : RunConfig):
 
     logger.stop()
     env.close()
+    
+    return run_name
 

@@ -43,3 +43,5 @@ Run experiments:
       - Frequency of evaluation, in number of episodes. Default 50.
     - `--eval_eps`
       - Number of episodes per evaluation. Default 25.
+    - `--runs_per_iteration`
+      - Number of runs to run in parallel. If total number of runs (num seeds * num tasks) exceeds `runs_per_iteration`, then multiple iterations are executed.
