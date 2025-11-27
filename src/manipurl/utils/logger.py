@@ -3,6 +3,7 @@ import numpy as np
 import torch
 
 
+mlflow.set_tracking_uri("http://0.0.0.0:5000")
 mlflow_client = mlflow.tracking.MlflowClient()
 
 
@@ -19,8 +20,8 @@ class Logger:
         for key, values in self.metrics.items():
             mlflow_client.log_metric(
                 self.run_id, key, 
-                np.mean(values), 
-                step=self.current_step)
+                torch.as_tensor(values).mean(dtype=torch.float32).cpu().numpy(), 
+                step=self.current_step)  
 
         self.current_step += 1
         self.metrics = {}
@@ -33,8 +34,6 @@ class Logger:
             mlflow_client.log_param(self.run_id, key, value)
 
     def log_metric(self, key, value):
-        if isinstance(value, torch.Tensor):
-            value = value.detach().numpy()
         if key in self.metrics:
             self.metrics[key].append(value)
         else:

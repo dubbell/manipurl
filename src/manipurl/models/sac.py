@@ -31,6 +31,9 @@ class SACAgent:
         self.gamma = gamma
         self.logger = logger
 
+        self.act_dim = act_dim
+        self.obs_dim = obs_dim
+
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         if not torch.cuda.is_available():
             click.echo("cuda not available")
@@ -57,8 +60,8 @@ class SACAgent:
         return sampled_action.squeeze()
 
     def sample_action(self, state):
-        state = torch.tensor(state, dtype=torch.float32, device=self.device)
-        return self._compiled_sample_action(state)
+        state = torch.as_tensor(state, dtype=torch.float32, device=self.device)
+        return self._compiled_sample_action(state).detach()
 
 
     @torch.compile
@@ -115,9 +118,9 @@ class SACAgent:
                 target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
         
         self.logger.log_metrics({
-            "critic_loss": critic_loss.detach().cpu().numpy(),
-            "actor_loss": actor_loss.detach().cpu().numpy(),
-            "alpha_loss": alpha_loss.detach().cpu().numpy(),
-            "actor_logp": actor_logp.detach().cpu().numpy(),
-            "log_alpha": self.log_alpha.detach().cpu().numpy(),
-            "q": q.detach().cpu().numpy()})
+            "critic_loss": critic_loss.detach(),
+            "actor_loss": actor_loss.detach(),
+            "alpha_loss": alpha_loss.detach(),
+            "actor_logp": actor_logp.detach(),
+            "log_alpha": self.log_alpha.detach(),
+            "q": q.detach()})
