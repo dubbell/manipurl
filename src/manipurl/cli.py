@@ -71,7 +71,8 @@ def cli():
     pass
 
 @cli.command()
-@click.argument('config', type=click.Choice(available_configs()), help="One of the available run configurations in `configs`.")
+@click.argument('algorithm', type=click.Choice(['sac']))
+@click.argument('config', type=click.Choice(available_configs()), required=False, default='default', help="One of the available run configurations in `configs`.")
 @click.option('--seeds', help="Comma separated list of seeds to sweep.")
 @click.option('--tasks', help="Comma separated list of tasks to sweep. `all` for all tasks.")
 @click.option('--n_episodes', help="Number of training episodes.")
@@ -79,7 +80,7 @@ def cli():
 @click.option('--start_training', help="Environment step for starting training.")
 @click.option('--eval_freq', help="Evaluation frequency (number of episodes).")
 @click.option('--eval_eps', help="Number of episodes per evaluation.")
-def train(config, **kwargs):
+def train(algorithm, config, **kwargs):
     """Start experiments for specified algorithm."""
 
     config_dict = get_config('default')
@@ -95,8 +96,8 @@ def train(config, **kwargs):
         return
 
     # execute sweep
-    if config.lower() == 'sac':
+    if algorithm.lower() == 'sac':
         sweep(train_sac, config_dict)
     else:
-        click.echo(f"Configuration file {config}.yaml not found.")
+        click.echo(f"Algorithm {algorithm} not available.")
 

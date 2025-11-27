@@ -8,7 +8,7 @@ def profile(func):
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        do_profiling = os.environ['MANIPURL_PROFILING']
+        do_profiling = os.environ.get('MANIPURL_PROFILING', False)
 
         if do_profiling:
             profiler = cProfile.Profile()

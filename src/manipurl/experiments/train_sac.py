@@ -52,7 +52,7 @@ def start_training(config : RunConfig):
     agent = SACAgent(state_dim, action_dim, logger=logger)
     replay_buffer = ReplayBuffer(state_dim, action_dim, min(int(1e6), config.n_episodes * config.max_episode_step))
 
-    pb_enable = os.environ['MANIPURL_ENABLE_LOGGING']
+    pb_enable = os.environ.get('MANIPURL_ENABLE_LOGGING', False)
     if pb_enable:
         pb = tqdm(total = config.n_episodes)
 
