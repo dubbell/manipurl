@@ -1,23 +1,30 @@
 # manipurl
 
-Robotic manipulation training algorithm implementations. Evaluation with simple Metaworld tasks, implementation with PyTorch.
+Robotic manipulation training algorithm implementations for sparse-reward environments. Evaluated with simple Metaworld tasks, implemented with PyTorch.
 
-Recommended setup: Linux, Python 3.9, Anaconda.
+Recommended setup: Linux (Ubuntu 24.04), Anaconda, Python 3.10.
 
 MLflow logging:
 - PostgreSQL backend: `postgresql+psycopg2://manipurl_user:123@localhost:5432/manipurl`
+  - DB name: `manipurl`
+  - DB user with perms for `manipurl`: `manipurl_user`
+  - Password for `manipurl_user`: `123`
+  - (If you want to change these settings you'll have to change the startup script described below.)
 - Start MLflow server with `bash ./scripts/start_mlflow_server.sh`
 
 Run experiments:
-- Install requirements with `pip install -r requirements.txt`
+- Create Anaconda environment, e.g. `conda create -n manipurl python=3.10`
+- Install required packages with `pip install -r requirements.txt` (could be somewhat bloated).
 - Install `manipurl` with `pip install -e .`
 - (Optional) Define configuration file in `configs`, following `configs/default.yaml` structure.
 - (Optional) Enable/disable logging and profiling with environment variables `MANIPURL_ENABLE_LOGGING` and `MANIPURL_PROFILING`.
   - Default for both is `False`.
   - Logs are sent to MLflow, tracked at `http://0.0.0.0:5000`.
+  - Profiling is performed with `cProfile` and results are stored in `data/profiling` as `.prof` files. Can be analyzed with `snakeviz`.
 - Start experiments with `manipurl train <ALGORITHM> [CONFIGURATION] [OPTIONS]`.
-  - `ALGORITHM` is training algorithm, e.g. `sac`.
-  - (Optional) `CONFIGURATION` is name of configuration file in `configs`, excluding `.yaml` file extension. Defaults to `default` configuration.
+  - `ALGORITHM` is the RL training algorithm, e.g. `sac`. Currently available training algorithms:
+    - `sac`
+  - (Optional) `CONFIGURATION` is the name of a configuration file in `configs`, excluding `.yaml` file extension. Defaults to `default` configuration.
   - `OPTIONS` can overwrite options defined in configuration file with corresponding flag:
     - `--seeds`
       - Randomization seeds to run. Integers separated by commas or `..` in string. E.g. `"1..5"`, `"1,2,3,4,5"`, `"1,2..5"`, etc. Default `"0..9"`.

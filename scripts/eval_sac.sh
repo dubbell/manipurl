@@ -1,0 +1,1 @@
+manipurl train sac --tasks all
