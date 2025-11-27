@@ -8,23 +8,19 @@ import torch
 
 import datetime
 from tqdm import tqdm
+import os
 
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning)
 
-import cProfile
-import os
+from manipurl.wrappers.profiling import profile
+from manipurl.experiments.run_config import RunConfig
 
 
-START_TRAINING = 2500
-EVAL_FREQ = 50
-EVAL_EPS = 25
-
-
-def evaluate(env : gym.Env, agent : SACAgent, logger : Logger):
+def evaluate(config : RunConfig, env : gym.Env, agent : SACAgent, logger : Logger):
     pinned_action_buffer = torch.empty(agent.act_dim, dtype=torch.float32, pin_memory = True)
 
-    for _ in range(EVAL_EPS):
+    for _ in range(config.eval_eps):
         terminate, truncate = False, False
         success = 0
         obs, _ = env.reset()
@@ -41,35 +37,31 @@ def evaluate(env : gym.Env, agent : SACAgent, logger : Logger):
         logger.log_metric("eval_succes", success)
             
 
-def start_training(task_name, seed, n_episodes, max_episode_step, pb_enable=True):
-    run_name = f"SAC_{task_name}_s{seed}_" + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+@profile
+def start_training(config : RunConfig):
+    run_name = f"SAC_{config.task}_s{config.seed}_" + datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     logger = Logger(run_name)
     logger.log_parameters({
-        "task": task_name,
-        "seed": seed,
-        "max_episode_step": max_episode_step,
-        "n_episodes": n_episodes,
+        **config._asdict(),
         "algorithm": "SAC"})
 
-    env = gym.make("Meta-World/MT1", env_name=task_name, seed=seed, max_episode_steps=max_episode_step)
-    eval_env = gym.make("Meta-World/MT1", env_name=task_name, seed=seed+100, max_episode_steps=max_episode_step)
+    env = gym.make("Meta-World/MT1", env_name=config.task, seed=config.seed, max_episode_steps=config.max_episode_step)
+    eval_env = gym.make("Meta-World/MT1", env_name=config.task, seed=config.seed+100, max_episode_steps=config.max_episode_step)
 
     state_dim, action_dim = env.observation_space.shape[0], env.action_space.shape[0]
     agent = SACAgent(state_dim, action_dim, logger=logger)
-    replay_buffer = ReplayBuffer(state_dim, action_dim, min(int(1e6), n_episodes * max_episode_step))
-    
-    profiler = cProfile.Profile()
-    profiler.enable()
+    replay_buffer = ReplayBuffer(state_dim, action_dim, min(int(1e6), config.n_episodes * config.max_episode_step))
 
+    pb_enable = os.environ['MANIPURL_ENABLE_LOGGING']
     if pb_enable:
-        pb = tqdm(total = n_episodes)
+        pb = tqdm(total = config.n_episodes)
 
     episode_count = 0
     total_step = 0
 
     with torch.random.fork_rng():
-        torch.manual_seed(seed)
-        while episode_count <= n_episodes:
+        torch.manual_seed(config.seed)
+        while episode_count <= config.n_episodes:
             terminate, truncate = False, False
             env_step = 0
             success = 0
@@ -89,7 +81,7 @@ def start_training(task_name, seed, n_episodes, max_episode_step, pb_enable=True
                     sparse_reward-1,
                     terminate)
                 
-                if total_step >= START_TRAINING:
+                if total_step >= config.start_training:
                     agent.train_step(replay_buffer.sample(256))
                 
                 if sparse_reward > 0:
@@ -104,7 +96,7 @@ def start_training(task_name, seed, n_episodes, max_episode_step, pb_enable=True
                 "success": success,
                 "episode_length": env_step})
 
-            if episode_count % EVAL_FREQ == 0:
+            if episode_count % config.eval_freq == 0:
                 evaluate(eval_env, agent, logger)
 
             logger.increment()
@@ -117,8 +109,4 @@ def start_training(task_name, seed, n_episodes, max_episode_step, pb_enable=True
 
     logger.stop()
     env.close()
-
-    profiler.disable()
-    os.makedirs("data/profiling", exist_ok=True)
-    profiler.dump_stats(f"data/profiling/{run_name}.prof")
 

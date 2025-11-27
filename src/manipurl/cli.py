@@ -2,6 +2,8 @@ import click
 from manipurl.experiments import train_sac
 from dotenv import load_dotenv
 from manipurl.experiments.parallel import sweep
+import os
+import yaml
 
 
 load_dotenv()
@@ -20,33 +22,81 @@ TEST_SUITE = [
     "window-close-v3"]
 
 
+def available_configs():
+    return [
+        filename.split('.yaml')[0]
+        for filename in os.listdir('configs')
+        if filename != 'default.yaml' and '.yaml' in filename]
+
+def get_config(config_name):
+    filepath = f'configs/{config_name}.yaml'
+    if not os.path.exists(filepath):
+        click.echo(f'Configuration file {config_name}.yaml not found.')
+    else:
+        with open(filepath, 'r') as file:
+            try:
+                data_dict = yaml.safe_load(file)
+                return data_dict
+            except yaml.YAMLError as exc:
+                click.echo(f'Error parsing YAML file: {exc}')
+    
+    return {}
+
+def unfold_seeds(seed_str):
+    try:
+        sections = [[int(seed) for seed in section.split(',')] for section in seed_str.split('..')]
+    except:
+        click.echo("Seeds can only be integers.")
+        return
+    for s_i in range(len(sections) - 1):
+        sections[s_i].extend(list(range(sections[s_i][-1] + 1, sections[s_i+1][0])))
+
+    return [seed for section in sections for seed in section]
+
+def unfold_tasks(task_str):
+    if task_str == 'all':
+        return TEST_SUITE
+    else:
+        tasks = task_str.split(',')
+        for task in tasks:
+            if task not in TEST_SUITE:
+                click.echo(f"Task {task} not available.")
+                return
+        return tasks
+
+
 @click.group()
 def cli():
     """manipurl: Command line interface for running RL experiments in RLBench."""
     pass
 
 @cli.command()
-@click.argument('algorithm', type=click.Choice(['sac']))
-@click.option('--seeds', default="0,1,2,3,4,5,6,7,8,9", help="Comma separated list of seeds to sweep.")
-@click.option('--tasks', default="button-press-v3", help="Comma separated list of tasks to sweep.")
-@click.option('--n_episodes', default=500, help="Number of training episodes.")
-@click.option('--max_episode_step', default=500, help="Max number of environment steps per episode.")
-def train(algorithm, seeds, tasks, n_episodes, max_episode_step):
+@click.argument('config', type=click.Choice(available_configs()), help="One of the available run configurations in `configs`.")
+@click.option('--seeds', help="Comma separated list of seeds to sweep.")
+@click.option('--tasks', help="Comma separated list of tasks to sweep. `all` for all tasks.")
+@click.option('--n_episodes', help="Number of training episodes.")
+@click.option('--max_episode_step', help="Max number of environment steps per episode.")
+@click.option('--start_training', help="Environment step for starting training.")
+@click.option('--eval_freq', help="Evaluation frequency (number of episodes).")
+@click.option('--eval_eps', help="Number of episodes per evaluation.")
+def train(config, **kwargs):
     """Start experiments for specified algorithm."""
-    try:
-        seeds = [int(seed) for seed in seeds.split(',')]
-    except:
-        click.echo("Seeds can only be integers.")
+
+    config_dict = get_config('default')
+    config_dict.update(get_config(config))
+    config_dict.update(kwargs)
+
+    config_dict['seeds'] = unfold_seeds(config_dict['seeds'])
+    if config_dict['seeds'] is None:
         return
-    
-    for task in tasks.split(','):
-        if task not in TEST_SUITE:
-            click.echo(f"Task {task} not available.")
-            return
+
+    config_dict['tasks'] = unfold_tasks(config_dict['tasks'])
+    if config_dict['tasks'] is None:
+        return
 
     # execute sweep
-    if algorithm.lower() == 'sac':
-        sweep(train_sac, tasks.split(','), seeds, n_episodes, max_episode_step)
+    if config.lower() == 'sac':
+        sweep(train_sac, config_dict)
     else:
-        click.echo(f"Algorithm {algorithm} not available.")
+        click.echo(f"Configuration file {config}.yaml not found.")
 
