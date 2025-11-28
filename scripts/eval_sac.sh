@@ -1,1 +1,1 @@
-manipurl train sac --tasks all
+manipurl train sac --tasks "door-open-v3,drawer-open-v3,peg-insert-side-v3,pick-place-v3" --n_episodes 2000

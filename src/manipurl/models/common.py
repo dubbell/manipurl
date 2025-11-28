@@ -27,7 +27,7 @@ class Actor(nn.Module):
         action_normal_distr = Normal(mu, std)
 
         # unconstrained action z
-        z = action_normal_distr.rsample()  
+        z = action_normal_distr.rsample()
 
         # constrained actions
         mean_action = torch.tanh(mu) * self.max_action

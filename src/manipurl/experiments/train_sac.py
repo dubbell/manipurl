@@ -1,6 +1,7 @@
 from manipurl.utils.logger import Logger, NoLogger
 from manipurl.models.sac import SACAgent
 from manipurl.utils.replay_buffer import ReplayBuffer
+from manipurl.utils.env import create_environment
 
 import gymnasium as gym
 import metaworld
@@ -16,26 +17,9 @@ warnings.filterwarnings("ignore", category=UserWarning)
 from manipurl.wrappers.profiling import profile
 from manipurl.experiments.run_config import RunConfig
 
+from .eval import evaluate
 
-def evaluate(env : gym.Env, agent : SACAgent, eval_eps : int, logger : Logger):
-    pinned_action_buffer = torch.empty(agent.act_dim, dtype=torch.float32, pin_memory = True)
 
-    for _ in range(eval_eps):
-        terminate, truncate = False, False
-        success = 0
-        obs, _ = env.reset()
-        while not terminate and not truncate:
-            gpu_action = agent.sample_action(obs)
-            pinned_action_buffer.copy_(gpu_action, non_blocking=True)
-            torch.cuda.synchronize()
-            action = pinned_action_buffer.numpy()
-
-            obs, _, terminate, truncate, info = env.step(action)
-            if info['success'] > 0:
-                success = 1
-        
-        logger.log_metric("eval_succes", success)
-            
 
 @profile
 def start_training(config : RunConfig):
@@ -45,8 +29,8 @@ def start_training(config : RunConfig):
         **config._asdict(),
         "algorithm": "SAC"})
 
-    env = gym.make("Meta-World/MT1", env_name=config.task, seed=config.seed, max_episode_steps=config.max_episode_step)
-    eval_env = gym.make("Meta-World/MT1", env_name=config.task, seed=config.seed+100, max_episode_steps=config.max_episode_step)
+    env = create_environment(config.task, config.seed, config.max_episode_step)
+    eval_env = create_environment(config.task, config.seed+100, config.max_episode_step)
 
     state_dim, action_dim = env.observation_space.shape[0], env.action_space.shape[0]
     agent = SACAgent(state_dim, action_dim, logger=logger)

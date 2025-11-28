@@ -3,7 +3,7 @@ from transformers import CLIPProcessor, CLIPModel
 
 
 model_name = "openai/clip-vit-base-patch32"
-model = CLIPModel.from_pretrained(model_name)
+model = CLIPModel.from_pretrained(model_name).cuda()
 processor = CLIPProcessor.from_pretrained(model_name, use_fast=True)
 
 
@@ -15,6 +15,8 @@ def project_text(text_to_project):
         text=text_to_project,
         return_tensors="pt",
         padding=True)
+    
+    text_token = { k : v.cuda() for k, v in text_token.items() }
 
     with torch.no_grad():
         text_embedding = model.get_text_features(**text_token)
@@ -27,6 +29,8 @@ def project_image(image_to_project):
 
     image_token = processor(
         images=image_to_project)
+    
+    image_token = { k : v.cuda() for k, v in image_token.items() }
     
     with torch.no_grad():
         image_embedding = model.get_image_features(**image_token)
