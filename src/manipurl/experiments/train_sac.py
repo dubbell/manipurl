@@ -51,12 +51,17 @@ def start_training(config : RunConfig):
             success = 0
 
             obs, _ = env.reset()
+            obs = torch.as_tensor(obs)
 
             while not terminate and not truncate:
-                action = agent.sample_action(obs).cpu().numpy()
+                if total_step < config.start_training:
+                    action = env.action_space.sample()
+                else:
+                    action = agent.sample_action(obs)
 
-                next_obs, _, terminate, truncate, info = env.step(action)
+                next_obs, _, terminate, truncate, info = env.step(action.cpu().numpy())
                 sparse_reward = info["success"]
+                next_obs = torch.as_tensor(next_obs)
                 
                 replay_buffer.insert(
                     obs, 

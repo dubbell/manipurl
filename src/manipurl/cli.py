@@ -22,6 +22,9 @@ TEST_SUITE = [
     "window-close-v3"]
 
 
+
+
+
 def available_configs():
     return [
         filename.split('.yaml')[0]
